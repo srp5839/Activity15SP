@@ -1,0 +1,350 @@
+---
+title: "Activity 14" 
+author: "Shane Papineau" 
+date: "11/15/2025" 
+format:  
+    pdf: 
+        toc: true 
+        number-sections: true 
+execute: 
+        echo: true 
+        warning: false 
+---
+
+```{r}
+#| label: docSetup
+#| include: false
+
+# below is the command for Pyhton if anyone wants to use instead of R. Run the command in terminal.
+# python -m pip install jupyter pandas numpy matplotlib
+
+# Load Packages ----
+library(googlesheets4) # For loading Armed Forces Data
+gs4_deauth()
+library(rvest) # For scraping Armed Forces Ranks
+library(dcData) # For loading Baby Names Data
+library(babynames)  # For loading Baby Names Data
+library(tidyverse) # For data wrangling and visualizing
+library(janitor) # For making two-way table
+library(knitr) # For creating professional tables
+library(kableExtra) # For styling professional tables
+
+```
+
+\newpage
+# Exploring the Armed Forces
+
+We will use the wrangled data to explore whether sex and rank are independent of one another through a two-way frequency table.
+
+```{r}
+
+#| label: freq_table
+#| echo: true
+
+
+#Import web ranks
+
+webRanks <- read_html("https://neilhatfield.github.io/Stat184_PayGradeRanks.html") %>%
+  html_elements(css = "table") %>%
+  html_table()
+rawRanks <- webRanks[[1]] # Extract the data frame of ranks
+
+#Import Forces Googke Doc
+rawForces <- read_sheet(
+  ss = "https://docs.google.com/spreadsheets/d/19xQnI1cBh6Jkw7eP8YQuuicMlVDF7Gr-nXCb5qbwb_E/edit?usp=sharing",
+  col_names = TRUE, # Turn off Column Names
+  skip = 1,
+  na = c("N/A*") # Tells R to treat the N/A* as missing values
+)
+
+
+#Individually rename some of the column names to tidy up our data
+rawForces <- rawForces %>%
+  rename('Rank' = ...1)
+
+rawForces <- rawForces %>%
+  rename('NavyM' = Navy)
+
+rawForces <- rawForces %>%
+  rename('NavyF' = ...6)
+
+#We want to use Navy as a sub Group as well as Navy E9's which are Master Chiefs
+
+#First we want to make a cleaned up version of our data that shows only Navy Pay Grades of Males and Females
+
+rawForces <- rawForces %>%
+  select('Rank', "NavyM", "NavyF")
+#From here we can now filter out our E9's which we will rename to Master Chief as that is the corresponding
+#Rank for that Pay Grade in the Navy
+
+cleanNavy <- rawForces %>%
+  filter(Rank == "E9") %>%
+  mutate(Rank = "Master Chief")
+
+
+#After renaming E9 to its Rank name in the Navy we can now look at the total Males and Females that are Master Chiefs
+
+cleanNavy <- cleanNavy %>%
+  pivot_longer(cols = c(NavyF, NavyM),
+               names_to = "Sex",
+               values_to = "Count") %>%
+  mutate(Sex = recode(Sex,
+                      NavyM = "Male",
+                      NavyF = "Female"))
+
+#We want to be able to view the frequency table in our pdf
+
+cleanNavy %>%
+  kbl(
+    caption = "Frequency Table of Master Chiefs by Sex",
+    booktabs = TRUE,
+    col.names = c("Rank", "Sex", "Count")
+  ) %>%
+  kable_styling(full_width = FALSE)
+
+
+
+
+```
+In our Frequency Table (Table1) we can see the total amount of Master Chiefs that are Males as well as Females that are Master Chiefs. In the Data we can see that there are more than 2000 Male Master Chiefs compared to Female Master Chiefs. This helps us show how sex and rank are independent from each other.
+
+\newpage
+# Popularity of Baby Names
+
+To explore the popularity of some names, we’ve decided to focus on the popularity of the first names of the instructional team: Veronica, Alyssa, Abby, and Neil. We will focus on the overall popularity of the name, without making a distinction based on the baby’s sex.
+
+```{r}
+
+#| label: Baby-Names-Popularity
+#| echo: true
+
+# Loads Baby Names Data
+
+library(dcData)
+data(BabyNames)
+
+# Filter Out Names Regardless of Sex
+
+filteredNames <- BabyNames %>%
+  filter(
+    name %in% c("Alyssa", "Abby", "Neil", "Veronica")
+  ) %>%
+group_by(name, year) %>%
+summarise(total = sum(count), .groups = "drop")
+
+
+
+#We want to now plot our names to see how popular names change yearly
+
+ggplot(
+  data = filteredNames,
+  mapping = aes(
+  x = year,
+  y = total,
+  color = name,
+  group = name
+)
+) +
+  geom_line(linewidth = 0.8) + 
+  labs(
+    x = "Year",
+    y = "Total Number of Babies",
+    title = "Two Most Popular Names of Both Genders After 1875"
+) + 
+  theme_bw()
+
+
+```
+
+
+In our visualization, we can see how the four names that we selected either increase or decrease over time starting from 1875. One of the points on our visualization is that some names take longer than others to see growth. One exmample is the name Alyssa which shows major popularity after 1975, we can also see that it peaks around the year 2000. We have our Years on the X-axis with total number of babies on the Y-axis. I decided make a time graph that shows 4 names with thier respected colors to help demonstrate popularity.
+
+
+\newpage
+
+# The Box Problem
+
+```{r}
+#| label: Box Problem
+#| echo: false
+#| fig-cap: "Figure2: Volume of Box Function"
+#| fig-alt: "A curve will show us the volume when a box is cut. We wil be able to see its peak."
+
+
+#Here we Define our volume function
+getVolume <- function(sideLength, paperLength = 48, paperWidth = 36){
+  vol <- sideLength * (paperWidth - 2*sideLength) * (paperLength - 2 * sideLength)
+  return(vol)
+}
+
+# we will plot now
+ggplot(
+data = tibble(sideLength = c(0,18)),
+mapping = aes(x = sideLength)
+) + 
+stat_function(
+fun = getVolume
+) + labs(
+title = "Volume of a 48x36",
+x = "Side Length" , 
+y = "Volume of Box"
+)+
+theme_bw()
+
+
+
+
+ 
+```
+
+## Narative Text for Box Problem
+In the plot of the Volume vs Side Length, we can see that the volume peaks around 6-7 inches. As the side length increses(X-axis) we can see it start at 0 and peak around 6-7. We can also see that once it hits this peak, the line begins to decrease. This will help us find the maximum volume.
+
+\newpage
+# Self Reflection
+
+I believe that I have a strong concept on how to visualize data that I am given. I also believe that I am understanding more and more about R each day. At first it did not come easy to me and I had to put in a lot of work to feel like I understand what I am doing now. I believe that even within this assignment I can still improve many aspects of my code and understanding of R.
+
+
+
+\newpage
+# Code Appendix
+
+```{r}
+
+#| label: freq_table
+#| echo: true
+
+
+#Import web ranks
+
+webRanks <- read_html("https://neilhatfield.github.io/Stat184_PayGradeRanks.html") %>%
+  html_elements(css = "table") %>%
+  html_table()
+rawRanks <- webRanks[[1]] # Extract the data frame of ranks
+
+#Import Forces Googke Doc
+rawForces <- read_sheet(
+  ss = "https://docs.google.com/spreadsheets/d/19xQnI1cBh6Jkw7eP8YQuuicMlVDF7Gr-nXCb5qbwb_E/edit?usp=sharing",
+  col_names = TRUE, # Turn off Column Names
+  skip = 1,
+  na = c("N/A*") # Tells R to treat the N/A* as missing values
+)
+
+
+#Individually rename some of the column names to tidy up our data
+rawForces <- rawForces %>%
+  rename('Rank' = ...1)
+
+rawForces <- rawForces %>%
+  rename('NavyM' = Navy)
+
+rawForces <- rawForces %>%
+  rename('NavyF' = ...6)
+
+#We want to use Navy as a sub Group as well as Navy E9's which are Master Chiefs
+
+#First we want to make a cleaned up version of our data that shows only Navy Pay Grades of Males and Females
+
+rawForces <- rawForces %>%
+  select('Rank', "NavyM", "NavyF")
+#From here we can now filter out our E9's which we will rename to Master Chief as that is the corresponding
+#Rank for that Pay Grade in the Navy
+
+cleanNavy <- rawForces %>%
+  filter(Rank == "E9") %>%
+  mutate(Rank = "Master Chief")
+
+
+#After renaming E9 to its Rank name in the Navy we can now look at the total Males and Females that are Master Chiefs
+
+cleanNavy <- cleanNavy %>%
+  pivot_longer(cols = c(NavyF, NavyM),
+               names_to = "Sex",
+               values_to = "Count") %>%
+  mutate(Sex = recode(Sex,
+                      NavyM = "Male",
+                      NavyF = "Female"))
+
+#We want to be able to view the frequency table in our pdf
+
+cleanNavy %>%
+  kbl(
+    caption = "Frequency Table of Master Chiefs by Sex",
+    booktabs = TRUE,
+    col.names = c("Rank", "Sex", "Count")
+  ) %>%
+  kable_styling(full_width = FALSE)
+
+
+
+#| label: Baby-Names-Popularity
+#| echo: true
+
+# Loads Baby Names Data
+
+library(dcData)
+data(BabyNames)
+
+# Filter Out Names Regardless of Sex
+
+filteredNames <- BabyNames %>%
+  filter(
+    name %in% c("Alyssa", "Abby", "Neil", "Veronica")
+  ) %>%
+group_by(name, year) %>%
+summarise(total = sum(count), .groups = "drop")
+
+
+
+#We want to now plot our names to see how popular names change yearly
+
+ggplot(
+  data = filteredNames,
+  mapping = aes(
+  x = year,
+  y = total,
+  color = name,
+  group = name
+)
+) +
+  geom_line(linewidth = 0.8) + 
+  labs(
+    x = "Year",
+    y = "Total Number of Babies",
+    title = "Two Most Popular Names of Both Genders After 1875"
+) + 
+  theme_bw()
+
+
+
+
+
+#| label: Box Problem
+#| echo: false
+#| fig-cap: "Figure2: Volume of Box Function"
+#| fig-alt: "A curve will show us the volume when a box is cut. We wil be able to see its peak."
+
+
+#Here we Define our volume function
+getVolume <- function(sideLength, paperLength = 48, paperWidth = 36){
+  vol <- sideLength * (paperWidth - 2*sideLength) * (paperLength - 2 * sideLength)
+  return(vol)
+}
+
+# we will plot now
+ggplot(
+data = tibble(sideLength = c(0,18)),
+mapping = aes(x = sideLength)
+) + 
+stat_function(
+fun = getVolume
+) + labs(
+title = "Volume of a 48x36",
+x = "Side Length" , 
+y = "Volume of Box"
+)+
+theme_bw()
+
+
+```
